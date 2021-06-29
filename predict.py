@@ -1,3 +1,4 @@
+import sys
 
 from model import (
     load_vqgan_model,
@@ -8,7 +9,6 @@ from model import (
     vector_quantize,
     clamp_with_grad,
 )
-
 
 
 import clip
@@ -40,7 +40,8 @@ class VQGANCLIP(cog.Model):
 
     @cog.input("prompt", type=str, help="Text prompt")
     @cog.input("iterations", type=int, help="Number of iterations", default=500)
-    def predict(self, prompt, iterations):
+    @cog.input("display_freq", type=int, default=50, help="Display frequency")
+    def predict(self, prompt, iterations, display_freq):
         prompts = [prompt]
         image_prompts = []
         noise_prompt_seeds = ([],)
@@ -51,7 +52,6 @@ class VQGANCLIP(cog.Model):
         step_size = 0.05
         cutn = 64
         cut_pow = 1.0
-        display_freq = 50
         seed = 0
 
         cut_size = self.perceptor.visual.input_resolution
@@ -124,7 +124,7 @@ class VQGANCLIP(cog.Model):
         @torch.no_grad()
         def checkin(i, losses):
             losses_str = ", ".join(f"{loss.item():g}" for loss in losses)
-            tqdm.write(f"i: {i}, loss: {sum(losses).item():g}, losses: {losses_str}")
+            sys.stderr.write(f"i: {i}, loss: {sum(losses).item():g}, losses: {losses_str}\n")
             out = synth(z)
             TF.to_pil_image(out[0].cpu()).save("progress.png")
             # display.display(display.Image('progress.png'))
@@ -157,5 +157,4 @@ class VQGANCLIP(cog.Model):
         for i in range(iterations):
             train(i)
 
-        return pathlib.Path("progress.png")
-
+        return pathlib.Path("/code/progress.png")

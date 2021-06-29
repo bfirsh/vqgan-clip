@@ -17,3 +17,8 @@ environment:
     - pip install git+https://github.com/bfirsh/taming-transformers.git@8ec57d7
   architectures:
     - gpu
+examples:
+  - input:
+      prompt: "hello world"
+      iterations: 3
+      display_freq: 1
