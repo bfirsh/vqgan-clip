@@ -21,7 +21,7 @@ from torch.nn import functional as F
 from torchvision.transforms import functional as TF
 
 
-class VQGANCLIP(cog.Model):
+class VQGANCLIP(cog.Predictor):
     def setup(self):
         clip_model = "ViT-B/32"
         vqgan_config = "vqgan_imagenet_f16_1024.yaml"
