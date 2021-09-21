@@ -157,4 +157,4 @@ class VQGANCLIP(cog.Predictor):
         for i in range(iterations):
             train(i)
 
-        return pathlib.Path("/code/progress.png")
+        return pathlib.Path("progress.png")
