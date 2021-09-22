@@ -39,9 +39,9 @@ class VQGANCLIP(cog.Predictor):
         )
 
     @cog.input("prompt", type=str, help="Text prompt")
-    @cog.input("iterations", type=int, help="Number of iterations", default=500)
-    @cog.input("display_freq", type=int, default=50, help="Display frequency")
-    def predict(self, prompt, iterations, display_freq):
+    @cog.input("iterations", type=int, help="Number of iterations", default=200, max=500)
+    def predict(self, prompt, iterations):
+        display_freq = 10
         prompts = [prompt]
         image_prompts = []
         noise_prompt_seeds = ([],)
@@ -127,7 +127,7 @@ class VQGANCLIP(cog.Predictor):
             sys.stderr.write(f"i: {i}, loss: {sum(losses).item():g}, losses: {losses_str}\n")
             out = synth(z)
             TF.to_pil_image(out[0].cpu()).save("progress.png")
-            # display.display(display.Image('progress.png'))
+            return pathlib.Path("progress.png")
 
         def ascend_txt():
             out = synth(z)
@@ -143,18 +143,15 @@ class VQGANCLIP(cog.Predictor):
 
             return result
 
-        def train(i):
+        for i in range(iterations):
             opt.zero_grad()
             lossAll = ascend_txt()
             if i % display_freq == 0:
-                checkin(i, lossAll)
+                yield checkin(i, lossAll)
             loss = sum(lossAll)
             loss.backward()
             opt.step()
             with torch.no_grad():
                 z.copy_(z.maximum(z_min).minimum(z_max))
 
-        for i in range(iterations):
-            train(i)
-
-        return pathlib.Path("progress.png")
+        yield checkin(i, lossAll)
