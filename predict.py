@@ -1,24 +1,23 @@
+import pathlib
 import sys
-
-from model import (
-    load_vqgan_model,
-    parse_prompt,
-    MakeCutouts,
-    Prompt,
-    resize_image,
-    vector_quantize,
-    clamp_with_grad,
-)
-
 
 import clip
 import cog
-import pathlib
-from PIL import Image
 import torch
-from torchvision import transforms
+from PIL import Image
 from torch.nn import functional as F
+from torchvision import transforms
 from torchvision.transforms import functional as TF
+
+from model import (
+    MakeCutouts,
+    Prompt,
+    clamp_with_grad,
+    load_vqgan_model,
+    parse_prompt,
+    resize_image,
+    vector_quantize,
+)
 
 
 class VQGANCLIP(cog.Predictor):
@@ -39,7 +38,9 @@ class VQGANCLIP(cog.Predictor):
         )
 
     @cog.input("prompt", type=str, help="Text prompt")
-    @cog.input("iterations", type=int, help="Number of iterations", default=200, max=500)
+    @cog.input(
+        "iterations", type=int, help="Number of iterations", default=200, max=500
+    )
     def predict(self, prompt, iterations):
         display_freq = 10
         prompts = [prompt]
@@ -124,7 +125,9 @@ class VQGANCLIP(cog.Predictor):
         @torch.no_grad()
         def checkin(i, losses):
             losses_str = ", ".join(f"{loss.item():g}" for loss in losses)
-            sys.stderr.write(f"i: {i}, loss: {sum(losses).item():g}, losses: {losses_str}\n")
+            sys.stderr.write(
+                f"i: {i}, loss: {sum(losses).item():g}, losses: {losses_str}\n"
+            )
             out = synth(z)
             TF.to_pil_image(out[0].cpu()).save("progress.png")
             return pathlib.Path("progress.png")
