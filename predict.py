@@ -4,6 +4,7 @@ import sys
 import clip
 import cog
 import torch
+from pathlib import Path
 from PIL import Image
 from torch.nn import functional as F
 from torchvision import transforms
@@ -38,22 +39,36 @@ class VQGANCLIP(cog.Predictor):
         )
 
     @cog.input("prompt", type=str, help="Text prompt")
+    @cog.input("image_prompt", type=Path, help="Image prompt", default=None)
     @cog.input(
-        "iterations", type=int, help="Number of iterations", default=200, max=500
+        "iterations", type=int, help="Number of iterations", default=250, max=250
     )
-    def predict(self, prompt, iterations):
-        display_freq = 10
+    @cog.input("initial_image", type=Path, help="Image to start with", default=None)
+    @cog.input("initial_weight", type=float, help="", default=0.0)
+    @cog.input("step_size", type=float, help="", default=0.05)
+    @cog.input("cutn", type=int, help="", default=64)
+    @cog.input("cut_pow", type=float, help="", default=1.0)
+    @cog.input("seed", type=int, help="Random seed", default=0)
+    def predict(
+        self,
+        image_prompt,
+        prompt,
+        iterations,
+        initial_image,
+        initial_weight,
+        step_size,
+        cutn,
+        cut_pow,
+        seed,
+    ):
+        display_freq = 1
         prompts = [prompt]
         image_prompts = []
+        if image_prompt is not None:
+            image_prompts.append(image_prompt)
         noise_prompt_seeds = ([],)
         noise_prompt_weights = []
         size = [480, 480]
-        init_image = None
-        init_weight = 0.0
-        step_size = 0.05
-        cutn = 64
-        cut_pow = 1.0
-        seed = 0
 
         cut_size = self.perceptor.visual.input_resolution
         e_dim = self.model.quantize.e_dim
@@ -72,8 +87,8 @@ class VQGANCLIP(cog.Predictor):
         if seed is not None:
             torch.manual_seed(seed)
 
-        if init_image:
-            pil_image = Image.open(init_image).convert("RGB")
+        if initial_image:
+            pil_image = Image.open(initial_image).convert("RGB")
             pil_image = pil_image.resize((sideX, sideY), Image.LANCZOS)
             z, *_ = self.model.encode(
                 TF.to_tensor(pil_image).to(self.device).unsqueeze(0) * 2 - 1
@@ -103,7 +118,7 @@ class VQGANCLIP(cog.Predictor):
             pMs.append(Prompt(embed, weight, stop).to(self.device))
 
         for prompt in image_prompts:
-            path, weight, stop = parse_prompt(prompt)
+            path, weight, stop = parse_prompt(str(prompt))
             img = resize_image(Image.open(path).convert("RGB"), (sideX, sideY))
             batch = make_cutouts(TF.to_tensor(img).unsqueeze(0).to(self.device))
             embed = self.perceptor.encode_image(normalize(batch)).float()
@@ -138,8 +153,8 @@ class VQGANCLIP(cog.Predictor):
 
             result = []
 
-            if init_weight:
-                result.append(F.mse_loss(z, z_orig) * init_weight / 2)
+            if initial_weight:
+                result.append(F.mse_loss(z, z_orig) * initial_weight / 2)
 
             for prompt in pMs:
                 result.append(prompt(iii))
